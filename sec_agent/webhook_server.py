@@ -33,7 +33,7 @@ from pathlib import Path
 
 import requests
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -124,10 +124,10 @@ async def _run_agent_for_filing(payload: FilingWebhookPayload):
 # ── Routes ──
 
 @app.post("/webhook/filing")
-async def webhook_filing(payload: FilingWebhookPayload, bg: BackgroundTasks):
+async def webhook_filing(payload: FilingWebhookPayload):
     """Receive a filing event and start the agent in the background."""
     logger.info("WEBHOOK received: %s %s (%s)", payload.ticker, payload.form_type, payload.cik)
-    bg.add_task(asyncio.create_task, _run_agent_for_filing(payload))
+    asyncio.create_task(_run_agent_for_filing(payload))
     return JSONResponse(
         {"ok": True, "message": f"Agent started for {payload.ticker or payload.cik}"},
         status_code=202,
@@ -173,7 +173,7 @@ a{{color:#6366f1}}</style></head><body>
 
 
 @app.get("/simulate/{ticker}")
-async def simulate(ticker: str, bg: BackgroundTasks):
+async def simulate(ticker: str):
     """Quick test: simulate a filing event for a known ticker."""
     ticker = ticker.upper()
     cik = DEMO_CIKS.get(ticker, "")
@@ -183,7 +183,7 @@ async def simulate(ticker: str, bg: BackgroundTasks):
             status_code=400,
         )
     payload = FilingWebhookPayload(cik=cik, ticker=ticker, form_type="10-Q", entity_name=f"{ticker} (simulated)")
-    bg.add_task(asyncio.create_task, _run_agent_for_filing(payload))
+    asyncio.create_task(_run_agent_for_filing(payload))
     return JSONResponse(
         {"ok": True, "message": f"Simulated filing event for {ticker} — agent starting in background"},
         status_code=202,
