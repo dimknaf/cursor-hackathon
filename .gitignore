@@ -1,0 +1,34 @@
+# Secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Browser sessions (large, per-machine)
+sec_agent/session/
+
+# Output (generated per run)
+sec_agent/output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# pytest
+.pytest_cache/
+
+# Watchlist (regenerated from SEC)
+sec_agent/watchlist.json
