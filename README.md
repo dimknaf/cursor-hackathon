@@ -1,5 +1,9 @@
 # SEC Filing Agent -- Always-On Investment Research
 
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=LUYMKw63LK4)
+
+> **[Watch the demo on YouTube](https://www.youtube.com/watch?v=LUYMKw63LK4)**
+
 An **always-on agent** that watches for new SEC filings (10-Q, 10-K) from ~500 companies, and automatically produces a comprehensive value-investing research brief with a visual dashboard -- triggered by the outside world, not by a human clicking "run."
 
 ## Quick Start (for judges)
