@@ -98,69 +98,66 @@ class FilingAnalysisResult(BaseModel):
         description="0-100: Overall risk level INVERTED — 0=very risky, 50=normal risk, 100=very low risk",
     )
 
-    # ── Fundamentals (LONG) ──
-    fundamentals_from_sec: str = Field(
+    # ── Fundamentals (bullet points) ──
+    fundamentals_from_sec: List[str] = Field(
         ...,
         description=(
-            "COMPREHENSIVE paragraph (at least 150 words): all key metrics from XBRL — "
-            "revenue, net income, operating income, EPS (basic + diluted), total assets, "
-            "current assets, current liabilities, cash, operating cash flow. "
-            "Include EXACT numbers with periods (e.g. Q1 FY2026 ended Dec 27 2025). "
-            "Show YoY comparison (this period vs same period last year). "
-            "Show QoQ comparison if data allows. Note units (billions/millions). "
-            "Do NOT be lazy with a few numbers — cover everything you pulled from sec_get_xbrl_concept."
+            "8-15 bullet points covering ALL key metrics from XBRL. Each bullet is one self-contained "
+            "data point with the EXACT number, period, and YoY comparison. Examples: "
+            "'Revenue: $124.3B in Q1 FY2026 (ended Dec 27 2025), up +4.0% YoY from $119.6B', "
+            "'Net Income: $36.3B, up +7.1% YoY from $33.9B', "
+            "'Diluted EPS: $2.40, up +10.1% YoY from $2.18'. "
+            "Cover: revenue, net income, operating income, EPS, total assets, cash, and any others "
+            "you pulled from sec_get_xbrl_concept. Note units (billions/millions)."
         ),
     )
 
-    # ── MD&A (LONG) ──
-    management_and_operations: str = Field(
+    # ── MD&A (bullet points) ──
+    management_and_operations: List[str] = Field(
         ...,
         description=(
-            "COMPREHENSIVE paragraph (at least 200 words): material themes from the actual filing "
-            "MD&A text you read via sec_fetch_filing_excerpt. Cover: revenue drivers by segment or "
-            "product line, gross margin trends and what drove them, operating expense trajectory, "
-            "geographic performance (which regions grew/declined), any management commentary on "
-            "demand, pricing, competition, investments, new products, or strategic shifts. "
+            "8-15 bullet points from the actual filing MD&A text via sec_fetch_filing_excerpt. "
+            "Each bullet covers one specific theme: revenue drivers by segment, gross margin trends, "
+            "operating expense trajectory, geographic performance, management commentary on demand, "
+            "pricing, competition, investments, new products, or strategic shifts. "
             "Quote or closely paraphrase specific language from the filing. "
-            "Do NOT summarize in 2 generic sentences — this is the heart of the analysis."
+            "Do NOT be vague — each bullet should be an actionable insight."
         ),
     )
 
-    # ── Risks (LONG) ──
-    risks_liquidity_capital: str = Field(
+    # ── Risks (bullet points) ──
+    risks_liquidity_capital: List[str] = Field(
         ...,
         description=(
-            "COMPREHENSIVE paragraph (at least 150 words): from the Risk Factors and Liquidity "
-            "sections of the filing. Cover: cash position, debt levels and maturities, credit "
-            "facility status, covenant compliance, capital expenditure plans, share buyback "
-            "and dividend programs, working capital trends. Flag any NEW risks that appeared "
-            "or risks that were REMOVED vs prior filings if visible. "
-            "Quote specific risk language if material."
+            "6-12 bullet points from Risk Factors and Liquidity sections of the filing. "
+            "Cover: cash position, debt levels and maturities, credit facility status, "
+            "capital expenditure plans, share buyback and dividend programs, working capital trends. "
+            "Flag any NEW risks. Quote specific risk language if material. "
+            "Each bullet should be one distinct risk or liquidity data point."
         ),
     )
 
-    # ── Market reaction (LONG) ──
-    market_and_news: str = Field(
+    # ── Market reaction (bullet points) ──
+    market_and_news: List[str] = Field(
         ...,
         description=(
-            "COMPREHENSIVE paragraph (at least 150 words): what you found via search_google "
-            "and visit_webpage. Name the sources (e.g. 'Reuters reported...', 'According to "
-            "Barron's...'). Include: stock price move post-filing, analyst upgrades/downgrades, "
-            "key quotes from commentary, consensus view on guidance, any controversy or debate. "
-            "Note the date/timing of each source. Do NOT make up analyst names or quotes."
+            "6-12 bullet points from search_google and visit_webpage results. "
+            "Name sources (e.g. 'Reuters reported...', 'According to Barron's...'). "
+            "Cover: stock price move post-filing, analyst upgrades/downgrades, key commentary quotes, "
+            "consensus view on guidance, any controversy. Note dates. "
+            "Each bullet is one news item or analyst view with attribution."
         ),
     )
 
-    # ── Value takeaway (LONG) ──
-    value_investor_takeaway: str = Field(
+    # ── Value takeaway (bullet points) ──
+    value_investor_takeaway: List[str] = Field(
         ...,
         description=(
-            "COMPREHENSIVE paragraph (at least 150 words): written for a long-term value investor. "
+            "5-10 bullet points written for a long-term value investor. "
             "Address: (1) business quality and competitive moat, (2) balance sheet strength or stress, "
-            "(3) durability and predictability of earnings, (4) capital allocation quality "
-            "(buybacks, dividends, reinvestment), (5) what changed in the economic reality of this "
-            "business based on this filing. No price targets. Plain language. "
-            "End with what to WATCH going forward."
+            "(3) durability and predictability of earnings, (4) capital allocation quality, "
+            "(5) what changed in the economic reality based on this filing. "
+            "No price targets. Plain language. Final bullet: what to WATCH going forward."
         ),
     )
 

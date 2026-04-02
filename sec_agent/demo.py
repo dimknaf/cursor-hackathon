@@ -74,7 +74,9 @@ IMPORTANT:
 - key_metrics must have 6-10 entries with real current + prior values and yoy_change_percent.
 - All 6 numeric scores (0-100) must be filled based on your research.
 - scored_items must have 5-12 entries covering different categories.
-- Text fields must be LONG and detailed (150-200+ words each), not lazy summaries.
+- fundamentals_from_sec, management_and_operations, risks_liquidity_capital, market_and_news,
+  value_investor_takeaway are each a JSON ARRAY of strings (List[str]), NOT a single string.
+  Each element is one bullet point. Provide 6-15 bullet points per field.
 - Be explicit about which accession and period you analyzed. Cite every URL."""
 
 
@@ -128,11 +130,20 @@ async def run_demo(cik: str, ticker: str, headless: bool) -> int:
                 print(f"  {m.label}: {m.current_value:,.2f} ({m.period_current}) "
                       f"vs {m.prior_value:,.2f} ({m.period_prior}) "
                       f"[{sign}{m.yoy_change_percent:.1f}% YoY]")
-        print(f"\nFundamentals:\n{brief.fundamentals_from_sec}\n")
-        print(f"Management & Ops:\n{brief.management_and_operations}\n")
-        print(f"Risks / Liquidity:\n{brief.risks_liquidity_capital}\n")
-        print(f"Market & News:\n{brief.market_and_news}\n")
-        print(f"Value Takeaway:\n{brief.value_investor_takeaway}\n")
+        def _print_bullets(title, items):
+            print(f"\n{title}:")
+            if isinstance(items, list):
+                for b in items:
+                    print(f"  - {b}")
+            else:
+                print(f"  {items}")
+            print()
+
+        _print_bullets("Fundamentals", brief.fundamentals_from_sec)
+        _print_bullets("Management & Ops", brief.management_and_operations)
+        _print_bullets("Risks / Liquidity", brief.risks_liquidity_capital)
+        _print_bullets("Market & News", brief.market_and_news)
+        _print_bullets("Value Takeaway", brief.value_investor_takeaway)
         if brief.scored_items:
             print("Scored Items:")
             for si in brief.scored_items:

@@ -1,4 +1,8 @@
-"""Generate a beautiful HTML dashboard from FilingAnalysisResult JSON."""
+"""Generate a beautiful HTML dashboard from FilingAnalysisResult JSON.
+
+Supports multi-company: scans output/ for all demo_*.json files and renders
+a company selector dropdown. Scored findings are at the top.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ TITLE }}</title>
+<title>SEC Filing Dashboard</title>
 <style>
   :root {
     --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a;
@@ -24,6 +28,13 @@ TEMPLATE = r"""<!DOCTYPE html>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
   .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+  /* Selector */
+  .selector-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .selector-bar label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .selector-bar select { background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; min-width: 200px; }
+  .selector-bar select:focus { outline: none; border-color: var(--accent); }
 
   /* Header */
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
@@ -68,6 +79,10 @@ TEMPLATE = r"""<!DOCTYPE html>
   .panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .panel h2 .icon { font-size: 18px; }
   .panel p { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+  .panel ul { list-style: none; padding: 0; margin: 0; }
+  .panel ul li { padding: 6px 0 6px 20px; position: relative; font-size: 14px; line-height: 1.6; border-bottom: 1px solid var(--border); }
+  .panel ul li:last-child { border-bottom: none; }
+  .panel ul li::before { content: "\25B8"; position: absolute; left: 2px; color: var(--accent); font-size: 12px; top: 8px; }
 
   /* Scored items */
   .items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -105,6 +120,9 @@ TEMPLATE = r"""<!DOCTYPE html>
 <body>
 <div class="container">
 
+  <!-- Company selector (multi-company mode) -->
+  {{ SELECTOR_HTML }}
+
   <!-- Header -->
   <div class="header">
     <div>
@@ -124,21 +142,7 @@ TEMPLATE = r"""<!DOCTYPE html>
   <!-- Score rings -->
   <div class="scores-row">{{ SCORE_CARDS }}</div>
 
-  <!-- Key metrics -->
-  <div class="metrics-grid">{{ METRIC_CARDS }}</div>
-
-  <!-- Text panels -->
-  <div class="two-col">
-    <div class="panel"><h2><span class="icon">&#128202;</span> Fundamentals</h2><p>{{ FUNDAMENTALS }}</p></div>
-    <div class="panel"><h2><span class="icon">&#128221;</span> Management &amp; Operations</h2><p>{{ MANAGEMENT }}</p></div>
-  </div>
-  <div class="two-col">
-    <div class="panel"><h2><span class="icon">&#9888;&#65039;</span> Risks / Liquidity / Capital</h2><p>{{ RISKS }}</p></div>
-    <div class="panel"><h2><span class="icon">&#128240;</span> Market &amp; News</h2><p>{{ MARKET }}</p></div>
-  </div>
-  <div class="panel"><h2><span class="icon">&#128161;</span> Value Investor Takeaway</h2><p>{{ TAKEAWAY }}</p></div>
-
-  <!-- Scored items -->
+  <!-- Scored findings (TOP) -->
   <div class="panel">
     <h2><span class="icon">&#127919;</span> Scored Findings</h2>
     <table class="items-table">
@@ -149,6 +153,20 @@ TEMPLATE = r"""<!DOCTYPE html>
 
   <!-- Action flags -->
   {{ FLAGS_HTML }}
+
+  <!-- Key metrics -->
+  <div class="metrics-grid">{{ METRIC_CARDS }}</div>
+
+  <!-- Text panels -->
+  <div class="two-col">
+    <div class="panel"><h2><span class="icon">&#128202;</span> Fundamentals</h2>{{ FUNDAMENTALS }}</div>
+    <div class="panel"><h2><span class="icon">&#128221;</span> Management &amp; Operations</h2>{{ MANAGEMENT }}</div>
+  </div>
+  <div class="two-col">
+    <div class="panel"><h2><span class="icon">&#9888;&#65039;</span> Risks / Liquidity / Capital</h2>{{ RISKS }}</div>
+    <div class="panel"><h2><span class="icon">&#128240;</span> Market &amp; News</h2>{{ MARKET }}</div>
+  </div>
+  <div class="panel"><h2><span class="icon">&#128161;</span> Value Investor Takeaway</h2>{{ TAKEAWAY }}</div>
 
   <!-- Citations -->
   <div class="panel citations">
@@ -197,7 +215,6 @@ def _metric_card(m: dict) -> str:
     yoy = m.get("yoy_change_percent", 0)
     sign = "+" if yoy >= 0 else ""
     cls = "pos" if yoy >= 0 else "neg"
-    # Format large numbers
     if abs(cur) >= 1e9:
         cur_str = f"${cur / 1e9:,.1f}B"
         pri_str = f"${pri / 1e9:,.1f}B"
@@ -210,10 +227,8 @@ def _metric_card(m: dict) -> str:
     else:
         cur_str = f"${cur:,.0f}"
         pri_str = f"${pri:,.0f}"
-
     bar_pct = min(100, max(5, abs(yoy) * 2 + 40))
     bar_color = "var(--green)" if yoy >= 0 else "var(--red)"
-
     return f"""<div class="metric-card">
   <div class="label">{m.get('label','')}</div>
   <div class="value">{cur_str}</div>
@@ -237,7 +252,31 @@ def _esc(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def generate_html(data: dict) -> str:
+def _bullets(val) -> str:
+    """Render a list of strings as <ul><li> or fall back to <p> for plain strings."""
+    if isinstance(val, list):
+        items = "\n".join(f"<li>{_esc(b)}</li>" for b in val if b)
+        return f"<ul>{items}</ul>" if items else "<p>No data</p>"
+    return f"<p>{_esc(str(val))}</p>"
+
+
+def _build_selector(all_files: list[Path], current: Path) -> str:
+    if len(all_files) <= 1:
+        return ""
+    options = []
+    for f in sorted(all_files):
+        name = f.stem.replace("demo_", "").upper()
+        selected = ' selected' if f.name == current.name else ''
+        html_name = f.with_suffix('.html').name
+        options.append(f'<option value="{html_name}"{selected}>{name}</option>')
+    opts_html = "\n".join(options)
+    return f"""<div class="selector-bar">
+  <label>Company:</label>
+  <select onchange="window.location.href=this.value">{opts_html}</select>
+</div>"""
+
+
+def generate_html(data: dict, all_files: list[Path] | None = None, current_file: Path | None = None) -> str:
     html = TEMPLATE
 
     ticker = data.get("tickers", "")
@@ -246,6 +285,11 @@ def generate_html(data: dict) -> str:
     html = html.replace("{{ ENTITY }}", _esc(data.get("entity_name", "")))
     html = html.replace("{{ ONE_LINE }}", _esc(data.get("one_line_summary", "")))
     html = html.replace("{{ FILING_FOCUS }}", _esc(data.get("filing_focus", "")))
+
+    if all_files and current_file:
+        html = html.replace("{{ SELECTOR_HTML }}", _build_selector(all_files, current_file))
+    else:
+        html = html.replace("{{ SELECTOR_HTML }}", "")
 
     sent = data.get("overall_sentiment", "neutral")
     html = html.replace("{{ SENTIMENT }}", sent.upper())
@@ -274,11 +318,11 @@ def generate_html(data: dict) -> str:
     metrics = data.get("key_metrics", [])
     html = html.replace("{{ METRIC_CARDS }}", "\n".join(_metric_card(m) for m in metrics))
 
-    html = html.replace("{{ FUNDAMENTALS }}", _esc(data.get("fundamentals_from_sec", "")))
-    html = html.replace("{{ MANAGEMENT }}", _esc(data.get("management_and_operations", "")))
-    html = html.replace("{{ RISKS }}", _esc(data.get("risks_liquidity_capital", "")))
-    html = html.replace("{{ MARKET }}", _esc(data.get("market_and_news", "")))
-    html = html.replace("{{ TAKEAWAY }}", _esc(data.get("value_investor_takeaway", "")))
+    html = html.replace("{{ FUNDAMENTALS }}", _bullets(data.get("fundamentals_from_sec", [])))
+    html = html.replace("{{ MANAGEMENT }}", _bullets(data.get("management_and_operations", [])))
+    html = html.replace("{{ RISKS }}", _bullets(data.get("risks_liquidity_capital", [])))
+    html = html.replace("{{ MARKET }}", _bullets(data.get("market_and_news", [])))
+    html = html.replace("{{ TAKEAWAY }}", _bullets(data.get("value_investor_takeaway", [])))
 
     items = data.get("scored_items", [])
     html = html.replace("{{ SCORED_ROWS }}", "\n".join(_scored_row(si) for si in items))
@@ -306,8 +350,35 @@ def generate_html(data: dict) -> str:
     return html
 
 
+def build_all_dashboards(output_dir: Path | None = None) -> list[Path]:
+    """Generate HTML for every demo_*.json in output_dir. Returns HTML paths."""
+    d = output_dir or OUTPUT_DIR
+    json_files = sorted(d.glob("demo_*.json"))
+    if not json_files:
+        return []
+    html_paths = []
+    for jf in json_files:
+        data = json.loads(jf.read_text(encoding="utf-8"))
+        html = generate_html(data, all_files=json_files, current_file=jf)
+        hp = jf.with_suffix(".html")
+        hp.write_text(html, encoding="utf-8")
+        html_paths.append(hp)
+    return html_paths
+
+
 def main():
-    """CLI: python -m sec_agent.dashboard [path_to_json]"""
+    """CLI: python -m sec_agent.dashboard [path_to_json | --all]"""
+    if len(sys.argv) > 1 and sys.argv[1] == "--all":
+        paths = build_all_dashboards()
+        if not paths:
+            print("No demo_*.json files found in output/")
+            sys.exit(1)
+        print(f"Generated {len(paths)} dashboards")
+        for p in paths:
+            print(f"  {p}")
+        webbrowser.open(str(paths[0]))
+        return
+
     if len(sys.argv) > 1:
         src = Path(sys.argv[1])
     else:
@@ -316,11 +387,17 @@ def main():
         print(f"File not found: {src}")
         sys.exit(1)
 
+    json_files = sorted(src.parent.glob("demo_*.json"))
     data = json.loads(src.read_text(encoding="utf-8"))
-    html = generate_html(data)
-
+    html = generate_html(data, all_files=json_files, current_file=src)
     out = src.with_suffix(".html")
     out.write_text(html, encoding="utf-8")
+    # Also regenerate siblings so selector links work
+    for jf in json_files:
+        if jf != src:
+            d = json.loads(jf.read_text(encoding="utf-8"))
+            hp = jf.with_suffix(".html")
+            hp.write_text(generate_html(d, all_files=json_files, current_file=jf), encoding="utf-8")
     print(f"Dashboard: {out}")
     webbrowser.open(str(out))
 

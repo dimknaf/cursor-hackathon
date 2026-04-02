@@ -71,12 +71,13 @@ This should be 12-18 tool calls. Do NOT skip steps to be "efficient." Thoroughne
 
 ## Output quality — DO NOT BE LAZY
 
-### Long text fields (each MUST be a substantial paragraph, not a few sentences):
-- fundamentals_from_sec: ALL numbers from XBRL with periods, YoY/QoQ. At least 150 words.
-- management_and_operations: Specific MD&A themes, segment detail, quotes. At least 200 words.
-- risks_liquidity_capital: Actual risk language, debt, cash, buybacks. At least 150 words.
-- market_and_news: Named sources, dates, analyst quotes from search. At least 150 words.
-- value_investor_takeaway: Moat, balance sheet, durability, what to watch. At least 150 words.
+### Analysis fields are LISTS OF BULLET POINTS (List[str]):
+Each field below is a JSON array of strings. Each string is one bullet point.
+- fundamentals_from_sec: 8-15 bullets, each one metric with exact number + period + YoY change.
+- management_and_operations: 8-15 bullets, each one specific MD&A theme or segment insight with quotes.
+- risks_liquidity_capital: 6-12 bullets, each one risk factor or liquidity data point.
+- market_and_news: 6-12 bullets, each one news item or analyst view with source attribution.
+- value_investor_takeaway: 5-10 bullets, moat, balance sheet, earnings durability, what to watch.
 
 ### Dashboard numbers (key_metrics):
 - Populate 6-10 KeyMetric objects with REAL numbers from sec_get_xbrl_concept.
@@ -146,11 +147,11 @@ async def run_sec_analysis(agent: Agent, task_message: str) -> FilingAnalysisRes
         logger.error("Parse failed: %s", e)
         return FilingAnalysisResult(
             filing_focus="(parse error)",
-            fundamentals_from_sec=str(result.final_output)[:1500],
-            management_and_operations="",
-            risks_liquidity_capital="",
-            market_and_news="",
-            value_investor_takeaway="Agent finished but output was not valid JSON.",
+            fundamentals_from_sec=[str(result.final_output)[:1500]],
+            management_and_operations=["(parse error)"],
+            risks_liquidity_capital=["(parse error)"],
+            market_and_news=["(parse error)"],
+            value_investor_takeaway=["Agent finished but output was not valid JSON."],
             citations="",
             caveats=str(e),
         )
