@@ -198,6 +198,68 @@ async def wait_for_human(reason: str) -> str:
 
 
 @function_tool
+async def get_stock_price(ticker: str) -> str:
+    """
+    Get live/recent stock price, volume, and key stats from Yahoo Finance.
+    Call this to ground your analysis with real price data instead of relying on news.
+
+    Args:
+        ticker: Stock ticker symbol (e.g. AAPL, MSFT).
+    """
+    try:
+        import yfinance as yf
+
+        t = await asyncio.to_thread(yf.Ticker, ticker.strip().upper())
+        info = await asyncio.to_thread(lambda: t.fast_info)
+
+        parts: list[str] = [f"=== Yahoo Finance: {ticker.upper()} ==="]
+        try:
+            parts.append(f"Last price: ${info['lastPrice']:.2f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Previous close: ${info['previousClose']:.2f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Open: ${info['open']:.2f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Day range: ${info['dayLow']:.2f} – ${info['dayHigh']:.2f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"52-week range: ${info['fiftyTwoWeekLow']:.2f} – ${info['fiftyTwoWeekHigh']:.2f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Market cap: ${info['marketCap']:,.0f}")
+        except Exception:
+            pass
+        try:
+            parts.append(f"Volume: {info['lastVolume']:,.0f}")
+        except Exception:
+            pass
+
+        # Recent price history (5 days)
+        hist = await asyncio.to_thread(lambda: t.history(period="5d"))
+        if hist is not None and not hist.empty:
+            parts.append("\nRecent 5-day history:")
+            for idx, row in hist.iterrows():
+                date_str = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)[:10]
+                parts.append(
+                    f"  {date_str}  O=${row['Open']:.2f}  H=${row['High']:.2f}  "
+                    f"L=${row['Low']:.2f}  C=${row['Close']:.2f}  Vol={int(row['Volume']):,}"
+                )
+
+        return "\n".join(parts) if len(parts) > 1 else f"ERROR: No data for {ticker}"
+    except Exception as e:
+        logger.exception("yfinance failed for %s", ticker)
+        return f"ERROR: Could not fetch price for {ticker} — {e}"
+
+
+@function_tool
 async def submit_result(result: FilingAnalysisResult) -> str:
     """Call exactly once when analysis is complete."""
     return result.model_dump_json()

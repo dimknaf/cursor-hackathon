@@ -7,4 +7,5 @@ crawl4ai
 python-dotenv
 requests
 beautifulsoup4
+yfinance
 pytest

@@ -20,6 +20,7 @@ from sec_agent.agent import create_sec_agent, run_sec_analysis
 from sec_agent.browser import BrowserManager
 from sec_agent.config import config, OUTPUT_DIR
 from sec_agent.crawl_browser import CrawlBrowserManager
+from sec_agent.dashboard import generate_html
 from sec_agent.tools import set_browser, set_crawl_browser
 
 logging.basicConfig(
@@ -47,20 +48,34 @@ def build_task(cik: str, ticker: str = "") -> str:
     label = f" (ticker: {ticker})" if ticker else ""
     return f"""CIK: {cik}{label}
 
-Analyze the most recent 10-Q or 10-K for this company. Steps:
+Do a THOROUGH analysis of the most recent 10-Q or 10-K for this company.
+Follow the research strategy in your instructions — all steps, no shortcuts.
 
-1. Call sec_list_recent_filings to find the latest 10-Q or 10-K (prefer whichever was filed most recently).
-2. Use sec_get_xbrl_concept to pull key fundamentals: at minimum try Revenues, NetIncomeLoss.
-   Also try OperatingIncomeLoss, EarningsPerShareDiluted, Assets, and CashAndCashEquivalentsAtCarryingValue
-   — if a concept 404s, note it in caveats and move on.
-3. Use sec_fetch_filing_excerpt to read the filing text:
-   - First call with text_search_anchor="Management" or "Results of Operations" for MD&A.
-   - Second call with text_search_anchor="Risk" or "Liquidity" for risk/capital discussion.
-4. Use search_google for 1-2 queries about market/press reaction to this company's most recent quarterly or annual filing.
-   If relevant, visit_webpage on one high-signal article.
-5. Synthesize everything and call submit_result.
+Step 1: sec_list_recent_filings → find latest 10-Q or 10-K.
+Step 2: sec_get_xbrl_concept for EACH of these (separate calls):
+   - Revenues (if 404, try RevenueFromContractWithCustomerExcludingAssessedTax)
+   - NetIncomeLoss
+   - OperatingIncomeLoss
+   - EarningsPerShareDiluted
+   - Assets
+   - CashAndCashEquivalentsAtCarryingValue
+Step 3: get_stock_price for {ticker or 'the ticker from submissions'}
+Step 4: sec_fetch_filing_excerpt × 3 calls:
+   - text_search_anchor="Results of Operations" (MD&A)
+   - text_search_anchor="Risk Factors"
+   - text_search_anchor="Liquidity"
+Step 5: search_google × 2:
+   - "{ticker} 10-Q filing earnings reaction"
+   - "{ticker} analyst commentary outlook"
+Step 6: visit_webpage on the best article from search results.
+Step 7: submit_result with ALL fields filled comprehensively.
 
-Be explicit about which accession you analyzed. Cite URLs."""
+IMPORTANT:
+- key_metrics must have 6-10 entries with real current + prior values and yoy_change_percent.
+- All 6 numeric scores (0-100) must be filled based on your research.
+- scored_items must have 5-12 entries covering different categories.
+- Text fields must be LONG and detailed (150-200+ words each), not lazy summaries.
+- Be explicit about which accession and period you analyzed. Cite every URL."""
 
 
 async def run_demo(cik: str, ticker: str, headless: bool) -> int:
@@ -80,26 +95,57 @@ async def run_demo(cik: str, ticker: str, headless: bool) -> int:
         logger.info("Starting demo for CIK=%s (%s)", cik, ticker or "?")
         brief = await run_sec_analysis(agent, task)
 
+        data = brief.model_dump()
         out_path = OUTPUT_DIR / f"demo_{ticker or cik}.json"
         out_path.write_text(
-            json.dumps(brief.model_dump(), indent=2, ensure_ascii=False),
+            json.dumps(data, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
         logger.info("Result → %s", out_path)
 
-        # Pretty-print key sections
-        print("\n" + "=" * 72)
-        print(f"  {brief.entity_name or ticker or cik}  —  {brief.filing_focus}")
-        print("=" * 72)
-        print(f"\n📊 Fundamentals:\n{brief.fundamentals_from_sec}\n")
-        print(f"📝 Management & Ops:\n{brief.management_and_operations}\n")
-        print(f"⚠️  Risks / Liquidity:\n{brief.risks_liquidity_capital}\n")
-        print(f"📰 Market & News:\n{brief.market_and_news}\n")
-        print(f"💡 Value Takeaway:\n{brief.value_investor_takeaway}\n")
-        print(f"🔗 Citations:\n{brief.citations}\n")
+        html_path = out_path.with_suffix(".html")
+        html_path.write_text(generate_html(data), encoding="utf-8")
+        logger.info("Dashboard → %s", html_path)
+        import webbrowser
+        webbrowser.open(str(html_path))
+
+        # Pretty-print
+        sep = "=" * 72
+        print(f"\n{sep}")
+        print(f"  {brief.entity_name or ticker or cik}  --  {brief.filing_focus}")
+        print(f"  {brief.one_line_summary}")
+        print(f"  Sentiment: {brief.overall_sentiment.upper()}  |  Importance: {brief.overall_importance.upper()}")
+        print(sep)
+        if brief.stock_price_snapshot:
+            print(f"\nStock Price:\n{brief.stock_price_snapshot}\n")
+        print(f"Scores: Revenue={brief.score_revenue_growth} Profit={brief.score_profitability} "
+              f"Balance={brief.score_balance_sheet} Mgmt={brief.score_management_quality} "
+              f"Sentiment={brief.score_market_sentiment} Risk={brief.score_risk_level}")
+        if brief.key_metrics:
+            print("\nKey Metrics:")
+            for m in brief.key_metrics:
+                sign = "+" if m.yoy_change_percent >= 0 else ""
+                print(f"  {m.label}: {m.current_value:,.2f} ({m.period_current}) "
+                      f"vs {m.prior_value:,.2f} ({m.period_prior}) "
+                      f"[{sign}{m.yoy_change_percent:.1f}% YoY]")
+        print(f"\nFundamentals:\n{brief.fundamentals_from_sec}\n")
+        print(f"Management & Ops:\n{brief.management_and_operations}\n")
+        print(f"Risks / Liquidity:\n{brief.risks_liquidity_capital}\n")
+        print(f"Market & News:\n{brief.market_and_news}\n")
+        print(f"Value Takeaway:\n{brief.value_investor_takeaway}\n")
+        if brief.scored_items:
+            print("Scored Items:")
+            for si in brief.scored_items:
+                print(f"  [{si.importance.upper():>9}] [{si.sentiment:>8}] [{si.surprise:>18}] "
+                      f"{si.category}: {si.item}")
+        if brief.action_flags:
+            print(f"\nAction Flags:")
+            for af in brief.action_flags:
+                print(f"  -> {af}")
+        print(f"\nCitations:\n{brief.citations}")
         if brief.caveats:
-            print(f"⚙️  Caveats:\n{brief.caveats}\n")
-        print("=" * 72)
+            print(f"\nCaveats:\n{brief.caveats}")
+        print(sep)
         return 0
     except Exception as e:
         logger.exception("Demo failed: %s", e)
