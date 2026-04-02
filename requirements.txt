@@ -1,0 +1,10 @@
+# SEC filing agent — install latest: pip install -U -r requirements.txt
+openai
+openai-agents[litellm]
+pydantic
+playwright
+crawl4ai
+python-dotenv
+requests
+beautifulsoup4
+pytest
