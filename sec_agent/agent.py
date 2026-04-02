@@ -147,11 +147,22 @@ async def run_sec_analysis(agent: Agent, task_message: str) -> FilingAnalysisRes
         logger.error("Parse failed: %s", e)
         return FilingAnalysisResult(
             filing_focus="(parse error)",
+            key_metrics=[],
+            score_revenue_growth=0,
+            score_profitability=0,
+            score_balance_sheet=0,
+            score_management_quality=0,
+            score_market_sentiment=0,
+            score_risk_level=0,
             fundamentals_from_sec=[str(result.final_output)[:1500]],
             management_and_operations=["(parse error)"],
             risks_liquidity_capital=["(parse error)"],
             market_and_news=["(parse error)"],
             value_investor_takeaway=["Agent finished but output was not valid JSON."],
+            overall_sentiment="neutral",
+            overall_importance="low",
+            one_line_summary="Agent output could not be parsed.",
+            scored_items=[],
             citations="",
             caveats=str(e),
         )
