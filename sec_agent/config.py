@@ -33,7 +33,7 @@ class Config:
     # SEC EDGAR: no API key; fair access requires a descriptive User-Agent (name + email).
     # Override with env SEC_USER_AGENT only if you need to rotate contact.
     sec_user_agent: str = os.getenv(
-        "SEC_USER_AGENT", "Dimitris dimknaf@gmail.com"
+        "SEC_USER_AGENT", "SECFilingAgent admin@example.com"
     )
 
     # Browser

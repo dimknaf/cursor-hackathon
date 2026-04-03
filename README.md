@@ -203,7 +203,7 @@ All settings live in `sec_agent/config.py` with env-var overrides:
 |----------|---------|---------|
 | `GEMINI_API_KEY` | (required) | Google AI / Gemini API key |
 | `AGENT_MODEL` | `gemini/gemini-3.1-flash-lite-preview` | LLM model |
-| `SEC_USER_AGENT` | `Dimitris dimknaf@gmail.com` | SEC fair-access header |
+| `SEC_USER_AGENT` | `YourName your@email.com` | SEC fair-access header (name + email required by SEC) |
 | `BROWSER_VISIBLE` | `true` | Show browser windows during research |
 | `AGENT_MAX_TURNS` | `40` | Max tool-call turns |
 
